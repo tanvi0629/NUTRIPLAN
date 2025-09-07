@@ -9,6 +9,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
+  loginAt: Date | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,6 +18,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loginAt, setLoginAt] = useState<Date | null>(null);
 
   useEffect(() => {
     // Set up auth state listener
@@ -25,6 +27,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        if (session) {
+          const stored = localStorage.getItem('loginAt');
+          if (stored) {
+            setLoginAt(new Date(stored));
+          } else {
+            const fromSupabase = (session.user as any)?.last_sign_in_at as string | undefined;
+            const ts = fromSupabase ? new Date(fromSupabase) : new Date();
+            setLoginAt(ts);
+            localStorage.setItem('loginAt', ts.toISOString());
+          }
+        } else {
+          setLoginAt(null);
+          localStorage.removeItem('loginAt');
+        }
       }
     );
 
@@ -33,6 +49,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session) {
+        const stored = localStorage.getItem('loginAt');
+        if (stored) {
+          setLoginAt(new Date(stored));
+        } else {
+          const fromSupabase = (session.user as any)?.last_sign_in_at as string | undefined;
+          const ts = fromSupabase ? new Date(fromSupabase) : new Date();
+          setLoginAt(ts);
+          localStorage.setItem('loginAt', ts.toISOString());
+        }
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -59,11 +86,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     });
+    if (!error) {
+      const now = new Date();
+      setLoginAt(now);
+      localStorage.setItem('loginAt', now.toISOString());
+    }
     return { error };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setLoginAt(null);
+    localStorage.removeItem('loginAt');
   };
 
   const value = {
@@ -73,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signOut,
     loading,
+    loginAt,
   };
 
   return (

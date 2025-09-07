@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   CalendarDays, 
   Target, 
@@ -15,6 +16,11 @@ import {
 } from "lucide-react";
 
 const Dashboard = () => {
+  const { user, loginAt } = useAuth();
+  const fullName = (user?.user_metadata?.name as string | undefined)?.trim();
+  const firstName = fullName ? fullName.split(/\s+/)[0] : undefined;
+  const displayName = firstName || user?.email?.split('@')[0] || 'there';
+  const streakDays = loginAt ? Math.max(1, Math.ceil((Date.now() - loginAt.getTime()) / (1000 * 60 * 60 * 24))) : 0;
   // Mock data for the dashboard
   const todayMeals = [
     { name: "Greek Yogurt Bowl", time: "8:00 AM", calories: 320, type: "Breakfast" },
@@ -41,7 +47,7 @@ const Dashboard = () => {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Welcome back, Sarah!</h1>
+            <h1 className="text-3xl font-bold">Welcome back, {displayName}!</h1>
             <p className="text-muted-foreground">
               Here's your nutrition overview for today.
             </p>
@@ -103,7 +109,7 @@ const Dashboard = () => {
               <TrendingUp className="h-4 w-4 text-secondary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12 days</div>
+              <div className="text-2xl font-bold">{streakDays} {streakDays === 1 ? 'day' : 'days'}</div>
               <p className="text-xs text-muted-foreground">
                 Keep it up!
               </p>
