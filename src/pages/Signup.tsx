@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,9 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -17,9 +19,17 @@ const Signup = () => {
   });
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { signUp, user } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     
     if (formData.password !== formData.confirmPassword) {
       toast({
@@ -27,22 +37,26 @@ const Signup = () => {
         description: "Passwords do not match.",
         variant: "destructive",
       });
+      setLoading(false);
       return;
     }
 
-    if (formData.name && formData.email && formData.password) {
-      toast({
-        title: "Account Created!",
-        description: "Welcome to NutriPlan! Let's get started.",
-      });
-      navigate("/dashboard");
-    } else {
+    const { error } = await signUp(formData.email, formData.password, formData.name);
+    
+    if (error) {
       toast({
         title: "Error",
-        description: "Please fill in all fields.",
+        description: error.message,
         variant: "destructive",
       });
+    } else {
+      toast({
+        title: "Account Created!",
+        description: "Please check your email to verify your account.",
+      });
     }
+    
+    setLoading(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,8 +166,8 @@ const Signup = () => {
                 </div>
               </div>
 
-              <Button type="submit" variant="cta" className="w-full">
-                Create Account
+              <Button type="submit" variant="cta" className="w-full" disabled={loading}>
+                {loading ? "Creating Account..." : "Create Account"}
               </Button>
             </form>
 
