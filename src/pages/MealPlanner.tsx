@@ -6,8 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChefHat, Clock, Users, Target, Sparkles, Calendar } from "lucide-react";
+import { ChefHat, Clock, Sparkles, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { INDIAN_DIET_TYPES, INDIAN_RESTRICTIONS, AYURVEDIC_GOALS, validateIndianDietCombination, validateCalorieTarget, IndianMealPlan, IndianDayPlan } from "@/types/indian-cuisine";
+import { mockIndianMealPlan } from "@/data/indian-meal-plans";
 
 const MealPlanner = () => {
   const [formData, setFormData] = useState({
@@ -19,59 +21,97 @@ const MealPlanner = () => {
     calorieTarget: "",
   });
   const [isGenerating, setIsGenerating] = useState(false);
-  const [mealPlan, setMealPlan] = useState<any>(null);
+  const [mealPlan, setMealPlan] = useState<IndianMealPlan | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
-  const goals = [
-    "Weight Loss",
-    "Muscle Gain",
-    "Maintenance",
-    "Heart Health",
-    "Energy Boost",
-  ];
-
-  const dietTypes = [
-    "Balanced",
-    "Low Carb",
-    "Mediterranean", 
-    "Plant-Based",
-    "Keto",
-    "Paleo",
-  ];
-
-  const restrictions = [
-    "Gluten-Free",
-    "Dairy-Free",
-    "Nut-Free",
-    "Vegetarian",
-    "Vegan",
-    "Low Sodium",
-  ];
-
-  const mockMealPlan = {
-    days: [
-      {
-        day: "Monday",
-        meals: [
-          { type: "Breakfast", name: "Greek Yogurt Parfait", calories: 320, time: "8:00 AM" },
-          { type: "Lunch", name: "Quinoa Buddha Bowl", calories: 450, time: "12:30 PM" },
-          { type: "Dinner", name: "Grilled Salmon & Vegetables", calories: 380, time: "7:00 PM" },
-          { type: "Snack", name: "Mixed Nuts & Apple", calories: 180, time: "3:30 PM" },
-        ],
-      },
-      {
-        day: "Tuesday", 
-        meals: [
-          { type: "Breakfast", name: "Avocado Toast", calories: 280, time: "8:00 AM" },
-          { type: "Lunch", name: "Mediterranean Wrap", calories: 420, time: "12:30 PM" },
-          { type: "Dinner", name: "Chicken Stir Fry", calories: 400, time: "7:00 PM" },
-          { type: "Snack", name: "Greek Yogurt", calories: 120, time: "3:30 PM" },
-        ],
-      },
-    ],
-    totalCalories: 2550,
-    macros: { protein: 125, carbs: 180, fat: 85 },
+  // Helper function to generate day names based on duration
+  const generateDayNames = (duration: number): string[] => {
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const result = [];
+    
+    for (let i = 0; i < duration; i++) {
+      result.push(dayNames[i % 7]);
+    }
+    
+    return result;
   };
+
+  // Helper function to generate meal plan based on duration
+  const generateMealPlanForDuration = (basePlan: IndianMealPlan, duration: number): IndianMealPlan => {
+    const dayNames = generateDayNames(duration);
+    const regionalThemes = [
+      "North Indian", "South Indian", "Gujarati", "Bengali", 
+      "Punjabi", "Kerala", "Tamil", "Maharashtrian"
+    ];
+    
+    const days: IndianDayPlan[] = dayNames.map((dayName, index) => {
+      // Cycle through the base plan days
+      const baseDayIndex = index % basePlan.days.length;
+      const baseDay = basePlan.days[baseDayIndex];
+      
+      return {
+        day: dayName,
+        regionalTheme: regionalThemes[index % regionalThemes.length],
+        meals: baseDay.meals.map(meal => ({
+          ...meal,
+          // Keep original meal names for better user experience
+          name: meal.name
+        }))
+      };
+    });
+
+    return {
+      ...basePlan,
+      days
+    };
+  };
+
+  // Pagination helper
+  const ITEMS_PER_PAGE = 4;
+  const totalPages = mealPlan ? Math.ceil(mealPlan.days.length / ITEMS_PER_PAGE) : 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentDays = mealPlan ? mealPlan.days.slice(startIndex, endIndex) : [];
+
+  const saveMealPlan = () => {
+    if (!mealPlan) {
+      toast({
+        title: "No Meal Plan",
+        description: "Please generate a meal plan first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Save meal plan to localStorage with timestamp
+      const savedPlan = {
+        ...mealPlan,
+        savedAt: new Date().toISOString(),
+        preferences: formData,
+      };
+      
+      localStorage.setItem("saved_indian_meal_plan", JSON.stringify(savedPlan));
+      
+      toast({
+        title: "Meal Plan Saved! 🎉",
+        description: "Your Indian meal plan has been saved successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Save Failed",
+        description: "There was an error saving your meal plan. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const goals = AYURVEDIC_GOALS;
+  const dietTypes = INDIAN_DIET_TYPES;
+  const restrictions = INDIAN_RESTRICTIONS;
+
+
 
   const handleRestrictionChange = (restriction: string, checked: boolean) => {
     setFormData({
@@ -92,15 +132,42 @@ const MealPlanner = () => {
       return;
     }
 
+    // Validate Indian diet combination
+    const dietValidation = validateIndianDietCombination(formData.dietType, formData.restrictions);
+    if (!dietValidation.isValid) {
+      toast({
+        title: "Diet Combination Issue",
+        description: dietValidation.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate calorie target if provided
+    if (formData.calorieTarget) {
+      const calorieValidation = validateCalorieTarget(formData.calorieTarget);
+      if (!calorieValidation.isValid) {
+        toast({
+          title: "Invalid Calorie Target",
+          description: calorieValidation.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setIsGenerating(true);
     
     // Mock API call
     setTimeout(() => {
-      setMealPlan(mockMealPlan);
+      const duration = parseInt(formData.duration);
+      const generatedPlan = generateMealPlanForDuration(mockIndianMealPlan, duration);
+      setMealPlan(generatedPlan);
+      setCurrentPage(1); // Reset to first page when generating new plan
       setIsGenerating(false);
       toast({
-        title: "Meal Plan Generated!",
-        description: "Your personalized meal plan is ready.",
+        title: "Indian Meal Plan Generated!",
+        description: `Your personalized ${duration}-day Indian meal plan is ready.`,
       });
     }, 2000);
   };
@@ -109,9 +176,9 @@ const MealPlanner = () => {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold mb-4">AI Meal Plan Generator</h1>
+          <h1 className="text-3xl font-bold mb-4">🇮🇳 Indian AI Meal Plan Generator</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Create personalized meal plans based on your goals, preferences, and dietary restrictions.
+            Create personalized Indian meal plans based on your Ayurvedic goals, regional preferences, and dietary restrictions.
           </p>
         </div>
 
@@ -124,16 +191,16 @@ const MealPlanner = () => {
                 Plan Preferences
               </CardTitle>
               <CardDescription>
-                Tell us about your goals and dietary preferences
+                Tell us about your Ayurvedic goals and Indian dietary preferences
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Health Goal</Label>
+                  <Label>Ayurvedic Goal</Label>
                   <Select value={formData.goal} onValueChange={(value) => setFormData({...formData, goal: value})}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select your goal" />
+                      <SelectValue placeholder="Select your wellness goal" />
                     </SelectTrigger>
                     <SelectContent>
                       {goals.map((goal) => (
@@ -146,10 +213,10 @@ const MealPlanner = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Diet Type</Label>
+                  <Label>Regional Cuisine</Label>
                   <Select value={formData.dietType} onValueChange={(value) => setFormData({...formData, dietType: value})}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select diet type" />
+                      <SelectValue placeholder="Select Indian cuisine type" />
                     </SelectTrigger>
                     <SelectContent>
                       {dietTypes.map((type) => (
@@ -181,7 +248,10 @@ const MealPlanner = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="duration">Duration</Label>
-                  <Select value={formData.duration} onValueChange={(value) => setFormData({...formData, duration: value})}>
+                  <Select value={formData.duration} onValueChange={(value) => {
+                    setFormData({...formData, duration: value});
+                    setCurrentPage(1); // Reset pagination when duration changes
+                  }}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -234,12 +304,12 @@ const MealPlanner = () => {
                 {isGenerating ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Generating Plan...
+                    Generating Indian Plan...
                   </>
                 ) : (
                   <>
                     <ChefHat className="h-4 w-4 mr-2" />
-                    Generate Meal Plan
+                    Generate Indian Meal Plan
                   </>
                 )}
               </Button>
@@ -268,34 +338,50 @@ const MealPlanner = () => {
                         <div className="text-sm text-muted-foreground">Daily Calories</div>
                       </div>
                       <div>
-                        <div className="text-2xl font-bold text-secondary">{formData.duration}</div>
+                        <div className="text-2xl font-bold text-secondary">{mealPlan.days.length}</div>
                         <div className="text-sm text-muted-foreground">Days</div>
                       </div>
                     </div>
-                    <div className="flex justify-center gap-4 mt-4 text-sm">
+                    <div className="flex justify-center gap-3 mt-4 text-sm">
                       <span>Protein: {mealPlan.macros.protein}g</span>
                       <span>Carbs: {mealPlan.macros.carbs}g</span>
                       <span>Fat: {mealPlan.macros.fat}g</span>
+                      <span>Fiber: {mealPlan.macros.fiber}g</span>
+                    </div>
+                    <div className="text-center mt-2 text-xs text-muted-foreground">
+                      {mealPlan.ayurvedicBalance}
                     </div>
                   </div>
 
                   {/* Daily Meals */}
                   <div className="space-y-4">
-                    {mealPlan.days.map((day: any, dayIndex: number) => (
-                      <div key={dayIndex} className="border border-border rounded-lg p-4">
-                        <h3 className="font-semibold mb-3 text-primary">{day.day}</h3>
+                    {currentDays.map((day, dayIndex: number) => (
+                      <div key={startIndex + dayIndex} className="border border-border rounded-lg p-4">
+                        <div className="flex justify-between items-center mb-3">
+                          <h3 className="font-semibold text-primary">{day.day}</h3>
+                          {day.regionalTheme && (
+                            <Badge variant="secondary" className="text-xs">
+                              {day.regionalTheme}
+                            </Badge>
+                          )}
+                        </div>
                         <div className="space-y-2">
-                          {day.meals.map((meal: any, mealIndex: number) => (
-                            <div key={mealIndex} className="flex justify-between items-center p-2 bg-accent/20 rounded">
-                              <div>
+                          {day.meals.map((meal, mealIndex: number) => (
+                            <div key={mealIndex} className="flex justify-between items-start p-3 bg-accent/20 rounded">
+                              <div className="flex-1">
                                 <div className="font-medium">{meal.name}</div>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                                   <Badge variant="outline" className="text-xs">{meal.type}</Badge>
                                   <Clock className="h-3 w-3" />
                                   {meal.time}
+                                  <span>• {meal.region}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {meal.cookingMethod} • {meal.ingredients.slice(0, 3).join(", ")}
+                                  {meal.ingredients.length > 3 && "..."}
                                 </div>
                               </div>
-                              <div className="text-sm text-muted-foreground">
+                              <div className="text-sm text-muted-foreground ml-2">
                                 {meal.calories} kcal
                               </div>
                             </div>
@@ -305,19 +391,63 @@ const MealPlanner = () => {
                     ))}
                   </div>
 
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {startIndex + 1}-{Math.min(endIndex, mealPlan.days.length)} of {mealPlan.days.length} days
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                            <Button
+                              key={page}
+                              variant={currentPage === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(page)}
+                              className="w-8 h-8 p-0"
+                            >
+                              {page}
+                            </Button>
+                          ))}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
-                    <Button variant="cta" className="flex-1">
-                      Save Plan
+                    <Button variant="cta" className="flex-1" onClick={saveMealPlan}>
+                      🍽️ Save Indian Plan
                     </Button>
-                    <Button variant="outline" className="flex-1">
-                      Regenerate
+                    <Button variant="outline" className="flex-1" onClick={generateMealPlan}>
+                      🔄 Regenerate Plan
                     </Button>
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
+                  <div className="text-6xl mb-4">🇮🇳</div>
                   <ChefHat className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Your meal plan will appear here once generated.</p>
+                  <p>Your personalized Indian meal plan will appear here once generated.</p>
+                  <p className="text-sm mt-2">Experience authentic flavors from across India!</p>
                 </div>
               )}
             </CardContent>
