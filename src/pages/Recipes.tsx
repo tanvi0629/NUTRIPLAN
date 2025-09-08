@@ -4,104 +4,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Clock, Users, Star, Heart, ChefHat, Filter } from "lucide-react";
+import { Search, Clock, Users, Star, Heart, ChefHat } from "lucide-react";
+import { indianRecipes } from "@/data/indian-recipes";
+import { INDIAN_RECIPE_CATEGORIES, INDIAN_REGIONS, SPICE_LEVELS } from "@/types/indian-cuisine";
 
 const Recipes = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedDifficulty, setSelectedDifficulty] = useState("all");
+  const [selectedRegion, setSelectedRegion] = useState("all");
+  const [selectedSpiceLevel, setSelectedSpiceLevel] = useState("all");
 
-  const categories = ["All", "Breakfast", "Lunch", "Dinner", "Snacks", "Desserts"];
-  const difficulties = ["All", "Easy", "Medium", "Hard"];
+  const categories = INDIAN_RECIPE_CATEGORIES;
+  const regions = INDIAN_REGIONS;
+  const spiceLevels = ["All", ...SPICE_LEVELS];
 
-  const mockRecipes = [
-    {
-      id: 1,
-      name: "Mediterranean Quinoa Bowl",
-      image: "🥗",
-      category: "Lunch",
-      difficulty: "Easy",
-      time: 25,
-      servings: 2,
-      rating: 4.8,
-      calories: 420,
-      tags: ["Vegetarian", "Gluten-Free", "High Protein"],
-      description: "A nutritious and colorful bowl packed with quinoa, fresh vegetables, and Mediterranean flavors.",
-    },
-    {
-      id: 2,
-      name: "Grilled Salmon with Asparagus",
-      image: "🐟",
-      category: "Dinner",
-      difficulty: "Medium",
-      time: 30,
-      servings: 4,
-      rating: 4.9,
-      calories: 380,
-      tags: ["Low Carb", "High Protein", "Omega-3"],
-      description: "Perfectly grilled salmon with roasted asparagus and lemon herb seasoning.",
-    },
-    {
-      id: 3,
-      name: "Greek Yogurt Berry Parfait",
-      image: "🫐",
-      category: "Breakfast",
-      difficulty: "Easy",
-      time: 5,
-      servings: 1,
-      rating: 4.7,
-      calories: 280,
-      tags: ["High Protein", "Probiotics", "Antioxidants"],
-      description: "Creamy Greek yogurt layered with fresh berries and crunchy granola.",
-    },
-    {
-      id: 4,
-      name: "Chicken Buddha Bowl",
-      image: "🍜",
-      category: "Lunch",
-      difficulty: "Medium",
-      time: 35,
-      servings: 2,
-      rating: 4.6,
-      calories: 520,
-      tags: ["High Protein", "Balanced", "Colorful"],
-      description: "A complete meal bowl with grilled chicken, roasted vegetables, and tahini dressing.",
-    },
-    {
-      id: 5,
-      name: "Avocado Toast Supreme",
-      image: "🥑",
-      category: "Breakfast",
-      difficulty: "Easy",
-      time: 10,
-      servings: 1,
-      rating: 4.5,
-      calories: 320,
-      tags: ["Vegetarian", "Healthy Fats", "Quick"],
-      description: "Artisanal sourdough topped with smashed avocado, cherry tomatoes, and hemp seeds.",
-    },
-    {
-      id: 6,
-      name: "Chocolate Protein Smoothie",
-      image: "🥤",
-      category: "Snacks",
-      difficulty: "Easy",
-      time: 3,
-      servings: 1,
-      rating: 4.8,
-      calories: 250,
-      tags: ["High Protein", "Post-Workout", "Quick"],
-      description: "Rich and creamy chocolate smoothie packed with protein and natural sweetness.",
-    },
-  ];
+  const mockRecipes = indianRecipes;
 
   const filteredRecipes = mockRecipes.filter((recipe) => {
     const matchesSearch = recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         recipe.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+                         recipe.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         recipe.mainIngredients.some(ingredient => ingredient.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = selectedCategory === "all" || recipe.category.toLowerCase() === selectedCategory.toLowerCase();
-    const matchesDifficulty = selectedDifficulty === "all" || recipe.difficulty.toLowerCase() === selectedDifficulty.toLowerCase();
+    const matchesRegion = selectedRegion === "all" || recipe.region.toLowerCase() === selectedRegion.toLowerCase();
+    const matchesSpiceLevel = selectedSpiceLevel === "all" || recipe.spiceLevel.toLowerCase() === selectedSpiceLevel.toLowerCase();
     
-    return matchesSearch && matchesCategory && matchesDifficulty;
+    return matchesSearch && matchesCategory && matchesRegion && matchesSpiceLevel;
   });
 
   return (
@@ -109,9 +36,9 @@ const Recipes = () => {
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold mb-4">Healthy Recipes</h1>
+          <h1 className="text-3xl font-bold mb-4">🇮🇳 Indian Recipes Collection</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Discover thousands of nutritious and delicious recipes to fuel your healthy lifestyle.
+            Discover authentic Indian recipes from North to South, featuring traditional flavors and regional specialties.
           </p>
         </div>
 
@@ -122,14 +49,14 @@ const Recipes = () => {
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search recipes, ingredients, or tags..."
+                  placeholder="Search Indian recipes, ingredients, or spices..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
               
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Category" />
@@ -143,14 +70,27 @@ const Recipes = () => {
                   </SelectContent>
                 </Select>
 
-                <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
+                <Select value={selectedRegion} onValueChange={setSelectedRegion}>
                   <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Difficulty" />
+                    <SelectValue placeholder="Region" />
                   </SelectTrigger>
                   <SelectContent>
-                    {difficulties.map((difficulty) => (
-                      <SelectItem key={difficulty} value={difficulty.toLowerCase()}>
-                        {difficulty}
+                    {regions.map((region) => (
+                      <SelectItem key={region} value={region.toLowerCase()}>
+                        {region}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedSpiceLevel} onValueChange={setSelectedSpiceLevel}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Spice Level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {spiceLevels.map((level) => (
+                      <SelectItem key={level} value={level.toLowerCase()}>
+                        {level}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -203,20 +143,33 @@ const Recipes = () => {
                     <span className="font-semibold text-primary">{recipe.calories}</span>
                     <span className="text-muted-foreground"> kcal</span>
                   </div>
-                  <Badge variant="outline" className="text-xs">
-                    {recipe.difficulty}
-                  </Badge>
+                  <div className="flex gap-1">
+                    <Badge variant="outline" className="text-xs">
+                      {recipe.difficulty}
+                    </Badge>
+                    <Badge variant={recipe.spiceLevel === "Spicy" ? "destructive" : recipe.spiceLevel === "Medium" ? "secondary" : "outline"} className="text-xs">
+                      {recipe.spiceLevel}
+                    </Badge>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-1">
-                  {recipe.tags.slice(0, 2).map((tag, tagIndex) => (
+                  <Badge variant="secondary" className="text-xs">
+                    {recipe.region} Indian
+                  </Badge>
+                  {recipe.state && (
+                    <Badge variant="outline" className="text-xs">
+                      {recipe.state}
+                    </Badge>
+                  )}
+                  {recipe.tags.slice(0, 1).map((tag, tagIndex) => (
                     <Badge key={tagIndex} variant="secondary" className="text-xs">
                       {tag}
                     </Badge>
                   ))}
-                  {recipe.tags.length > 2 && (
+                  {recipe.tags.length > 1 && (
                     <Badge variant="outline" className="text-xs">
-                      +{recipe.tags.length - 2}
+                      +{recipe.tags.length - 1}
                     </Badge>
                   )}
                 </div>
@@ -227,7 +180,7 @@ const Recipes = () => {
                     Cook Now
                   </Button>
                   <Button variant="outline" size="sm">
-                    Save
+                    ❤️ Save
                   </Button>
                 </div>
               </CardContent>
@@ -237,10 +190,11 @@ const Recipes = () => {
 
         {filteredRecipes.length === 0 && (
           <div className="text-center py-12">
+            <div className="text-6xl mb-4">🔍</div>
             <ChefHat className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No recipes found</h3>
+            <h3 className="text-lg font-semibold mb-2">No Indian recipes found</h3>
             <p className="text-muted-foreground">
-              Try adjusting your search or filters to find more recipes.
+              Try adjusting your search or filters to discover more authentic Indian dishes.
             </p>
           </div>
         )}
@@ -249,7 +203,7 @@ const Recipes = () => {
         {filteredRecipes.length > 0 && (
           <div className="text-center">
             <Button variant="outline">
-              Load More Recipes
+              🍛 Load More Indian Recipes
             </Button>
           </div>
         )}
