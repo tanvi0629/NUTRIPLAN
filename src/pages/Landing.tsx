@@ -11,7 +11,6 @@ import {
   ChefHat,
   Target,
   BarChart3,
-  Star,
   Utensils,
   Sparkles,
   Heart,

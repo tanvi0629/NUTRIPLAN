@@ -30,7 +30,6 @@ import {
   Trash2,
   BookOpen,
   Calendar,
-  Users,
   ChevronLeft,
   ChevronRight,
   X,
@@ -70,7 +69,6 @@ const Dashboard = () => {
 
   const todaysMeals = getTodaysMeals();
   const todaysCalories = getTodaysCalories();
-  const mealCount = getMealCount();
   const todaysMacros = getTodaysMacros();
 
   // Pagination for meal plan modal
